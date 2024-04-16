@@ -57,7 +57,7 @@ jobs:
   
       - uses: azure/k8s-deploy@v4
         with:
-          manifests: ./infra/deployment.yml
+          manifests: ./infra/deployment.yaml
           namespace: default
           images: |
               kumojin.azurecr.io/demo:${{ github.sha }}
