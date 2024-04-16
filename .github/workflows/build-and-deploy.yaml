@@ -1,0 +1,60 @@
+name: Build and deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build docker image
+    runs-on: ubuntu-latest
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v3
+  
+        # - name: Build container image
+        #   run: docker build Dockerfile -t kumojin.azurecr.io/demo:${{ github.sha }} .
+  
+        # - name: Docker Login
+        #   run: docker login kumojin.azurecr.io --username kumojin --password ${{ secrets.AZURE_KUMOJIN_ACR_TOKEN }}
+  
+        # - name: Push image to Github registry
+        #   run: docker push kumojin.azurecr.io/demo:${{ github.sha }}
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v3
+
+        - name: Login to Registry
+          uses: docker/login-action@v3
+          with:
+            registry: kumojin.azurecr.io
+            username: kumojin
+            password: ${{ secrets.AZURE_KUMOJIN_ACR_TOKEN }}
+
+        - name: Build and push
+          uses: docker/build-push-action@v5
+          with:
+            push: true
+            tags: kumojin.azurecr.io/demo:${{ github.sha }}
+  
+  deploy:
+    name: deploy to cluster
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+  
+      # Set the target AKS cluster.
+      - uses: azure/aks-set-context@v1
+        with:
+          creds: "${{ secrets.AZURE_KUMOJIN_CREDENTIALS }}"
+          cluster-name: kumojin-ca
+          resource-group: kumojin
+  
+      - uses: azure/k8s-deploy@v4
+        with:
+          manifests: ./infra/deployment.yml
+          namespace: default
+          images: |
+              kumojin.azurecr.io/demo:${{ github.sha }}
